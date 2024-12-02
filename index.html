@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Proxy and Model Status Checker</title>
+  <style>
+    /* Your existing styles */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      text-align: center;
+      font-family: Helvetica, Arial, sans-serif;
+      background-color: #1e1e1e;
+      color: #e0e0e0;
+      text-transform: lowercase;
+      padding: 20px;
+    }
+    h1 {
+      margin-bottom: 20px;
+      color: #ffffff;
+      font-size: 2em;
+      white-space: nowrap;
+    }
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      max-width: 600px;
+      padding: 20px;
+      background-color: #333333;
+      border-radius: 8px;
+      box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.5);
+      margin-bottom: 20px;
+    }
+    input, textarea {
+      margin: 10px 0;
+      padding: 10px;
+      font-size: 1rem;
+      border-radius: 5px;
+      background-color: #2a2a2a;
+      color: #e0e0e0;
+      border: 1px solid #555555;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    button {
+      cursor: pointer;
+      background-color: #6c757d;
+      color: white;
+      border: none;
+      padding: 10px;
+      border-radius: 5px;
+      font-size: 1rem;
+      transition: background-color 0.3s;
+      width: 100%;
+      box-sizing: border-box;
+      margin-top: 10px;
+    }
+    button:hover {
+      background-color: #5a6268;
+    }
+    .status {
+      margin-top: 20px;
+      width: 100%;
+    }
+    .status h2 {
+      margin-bottom: 10px;
+      font-size: 1.5em;
+      color: #ffffff;
+    }
+    .status table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .status th, .status td {
+      padding: 10px;
+      border: 1px solid #555555;
+      text-align: left;
+    }
+    .status th {
+      background-color: #444444;
+    }
+    .status td.working {
+      background-color: #28a745; /* Green */
+      color: #ffffff;
+    }
+    .status td.down {
+      background-color: #dc3545; /* Red */
+      color: #ffffff;
+    }
+    .message {
+      margin-top: 20px;
+      font-size: 1.1em;
+    }
+  </style>
+</head>
+<body>
+  <h1>Proxy and Model Status Checker</h1>
+  <div class="container">
+    <input type="text" id="apiUrl" placeholder="Enter reverse proxy API base URL (leave blank for default)">
+    <button onclick="checkStatus()">Check Status</button>
+    <div class="message" id="message"></div>
+  </div>
+  <div class="status" id="status"></div>
+
+  <script>
+    async function getDefaultProxy() {
+      const defaultProxyUrl = 'https://mubilop.tech/proxy';
+      try {
+        const response = await fetch(defaultProxyUrl);
+        if (response.ok) {
+          const proxy = await response.text();
+          return proxy.trim();
+        } else {
+          throw new Error(`Failed to retrieve default proxy: ${response.status} ${response.statusText}`);
+        }
+      } catch (error) {
+        console.error('Error retrieving default proxy:', error);
+        alert('Error retrieving default proxy. Please enter a valid API URL.');
+        return null;
+      }
+    }
+
+    async function checkProxy(apiUrl) {
+      try {
+        const response = await fetch(apiUrl);
+        return response.ok;
+      } catch (error) {
+        console.error('Error checking proxy:', error);
+        return false;
+      }
+    }
+
+    async function getModels(apiUrl) {
+      try {
+        const response = await fetch(`${apiUrl}/v1/models`);
+        if (response.ok) {
+          const data = await response.json();
+          return data.data || [];
+        } else {
+          console.error(`Error fetching models: ${response.status} ${response.statusText}`);
+          return [];
+        }
+      } catch (error) {
+        console.error('Error fetching models:', error);
+        return [];
+      }
+    }
+
+    async function checkModel(apiUrl, modelId) {
+      try {
+        const response = await fetch(`${apiUrl}/v1/api/working?model=${modelId}`);
+        if (response.ok) {
+          const data = await response.text();
+          return data.trim().toLowerCase() === 'true';
+        } else {
+          console.error(`Error checking model ${modelId}: ${response.status} ${response.statusText}`);
+          return false;
+        }
+      } catch (error) {
+        console.error(`Error checking model ${modelId}:`, error);
+        return false;
+      }
+    }
+
+    function formatModelName(modelId) {
+      return modelId.split('-').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
+    }
+
+    async function checkStatus() {
+      const apiUrlInput = document.getElementById('apiUrl').value.trim();
+      const messageDiv = document.getElementById('message');
+      const statusDiv = document.getElementById('status');
+      statusDiv.innerHTML = ''; // Clear previous status
+      messageDiv.textContent = ''; // Clear previous message
+
+      let apiUrl = apiUrlInput;
+      if (!apiUrl) {
+        messageDiv.textContent = 'Using latest default proxy...';
+        apiUrl = await getDefaultProxy();
+        if (!apiUrl) {
+          messageDiv.textContent = 'Cannot proceed without a valid proxy URL.';
+          return;
+        }
+      } else {
+        if (!apiUrl.startsWith('http')) {
+          apiUrl = 'http://' + apiUrl;
+        }
+      }
+
+      messageDiv.textContent = 'Checking proxy...';
+      const proxyWorking = await checkProxy(apiUrl);
+      if (!proxyWorking) {
+        messageDiv.textContent = 'Proxy is down. Cannot proceed further.';
+        return;
+      }
+
+      messageDiv.textContent = 'Proxy is working. Fetching models...';
+      const models = await getModels(apiUrl);
+      if (models.length === 0) {
+        messageDiv.textContent = 'No models found.';
+        return;
+      }
+
+      messageDiv.textContent = `Found ${models.length} models. Checking models...`;
+
+      const results = [];
+      results.push({
+        type: 'Proxy',
+        name: 'Proxy',
+        status: 'Working',
+      });
+
+      for (const model of models) {
+        const modelId = model.id || 'unknown-id';
+        const modelType = model.type || 'unknown';
+        const isWorking = await checkModel(apiUrl, modelId);
+        const status = isWorking ? 'Working' : 'Down';
+        let typeLabel = 'Unknown';
+
+        if (modelType === 'chat.completions') {
+          typeLabel = 'Chatbot';
+        } else if (modelType === 'images.generations') {
+          typeLabel = 'ImageGen';
+        }
+
+        results.push({
+          type: typeLabel,
+          name: formatModelName(modelId),
+          status: status,
+        });
+      }
+
+      displayResults(results);
+      messageDiv.textContent = 'Status check completed.';
+    }
+
+    function displayResults(results) {
+      const statusDiv = document.getElementById('status');
+      const table = document.createElement('table');
+
+      // Create table headers
+      const headerRow = document.createElement('tr');
+      ['Type', 'Name', 'Status'].forEach(text => {
+        const th = document.createElement('th');
+        th.textContent = text;
+        headerRow.appendChild(th);
+      });
+      table.appendChild(headerRow);
+
+      // Create table rows
+      results.forEach(result => {
+        const row = document.createElement('tr');
+
+        const typeCell = document.createElement('td');
+        typeCell.textContent = result.type;
+        row.appendChild(typeCell);
+
+        const nameCell = document.createElement('td');
+        nameCell.textContent = result.name;
+        row.appendChild(nameCell);
+
+        const statusCell = document.createElement('td');
+        statusCell.textContent = result.status;
+        statusCell.classList.add(result.status.toLowerCase());
+        row.appendChild(statusCell);
+
+        table.appendChild(row);
+      });
+
+      statusDiv.appendChild(table);
+    }
+  </script>
+</body>
+</html>
