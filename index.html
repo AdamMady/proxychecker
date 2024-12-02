@@ -5,6 +5,13 @@
   <title>Status Checker</title>
   <!-- Meta viewport tag for responsive design -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Status Checker</title>
+  <!-- Meta viewport tag for responsive design -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     /* Reset and base styles */
     * {
@@ -83,20 +90,43 @@
       font-size: 1.5rem;
       color: #ffffff;
     }
+    /* Modified CSS for the table */
     .status table {
       width: 100%;
-      border-collapse: collapse;
-      table-layout: auto;
+      border-collapse: separate; /* Changed from collapse to separate */
+      border-spacing: 0; /* Remove spacing between cells */
+      border-radius: 8px; /* Rounded corners */
+      overflow: hidden; /* Ensure content respects the border radius */
+      background-color: #333333; /* Ensure table has a background color */
+      box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.3); /* Optional: Add shadow for depth */
     }
+
+    /* Optional: Add a subtle separator between header and body */
+    .status th {
+      background-color: #444444;
+      position: relative;
+      z-index: 1;
+    }
+
+    .status th::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      bottom: -1px;
+      width: 100%;
+      height: 1px;
+      background-color: #555555;
+      z-index: -1;
+    }
+
     .status th, .status td {
       padding: 12px;
       border: 1px solid #555555;
       text-align: left;
       font-size: 1rem;
+      background-clip: padding-box; /* Prevent borders from overlapping the border-radius */
     }
-    .status th {
-      background-color: #444444;
-    }
+
     .status td.working {
       background-color: #28a745; /* Green */
       color: #ffffff;
@@ -104,6 +134,11 @@
     .status td.down {
       background-color: #dc3545; /* Red */
       color: #ffffff;
+    }
+    .status td.proxy {
+      background-color: #322436; /* Shade of Purple */
+      color: #ffffff;
+      font-weight: bold;
     }
     .message {
       margin-top: 20px;
@@ -179,7 +214,7 @@
 <body>
   <h1>status checker</h1>
   <div class="container">
-    <input type="text" id="apiUrl" placeholder="enter url with /v1 (leave blank for default)">
+    <input type="text" id="apiUrl" placeholder="enter url with /v1/ (leave blank for default)">
     <button id="checkButton" onclick="checkStatus()">check status</button>
     <div class="message" id="message"></div>
   </div>
@@ -187,7 +222,6 @@
     <h2>Model Status</h2>
     <table id="statusTable">
       <tr>
-        <th>Type</th>
         <th>Name</th>
         <th>Status</th>
       </tr>
@@ -298,7 +332,6 @@
       // Clear previous status and headers
       statusTable.innerHTML = `
         <tr>
-          <th>Type</th>
           <th>Name</th>
           <th>Status</th>
         </tr>
@@ -329,14 +362,14 @@
 
       if (!proxyWorking) {
         messageDiv.textContent = 'Proxy is down. Cannot proceed further.';
-        // Add Proxy status to table
-        addRowToTable('Proxy', 'Proxy', 'Down');
+        // Add Proxy status to table with special styling
+        addRowToTable('Proxy', 'Down', true);
         checkButton.disabled = false;
         return;
       }
 
-      // Add Proxy status to table
-      addRowToTable('Proxy', apiUrl, 'Working');
+      // Add Proxy status to table with special styling
+      addRowToTable(apiUrl, 'Working', true);
       messageDiv.textContent = 'Proxy is working. Fetching models...';
 
       const models = await getModels(apiUrl, signal);
@@ -358,6 +391,12 @@
         const modelId = model.id || 'unknown-id';
         const modelType = model.type || 'unknown';
         
+        // Skip ImageGen models
+        if (modelType === 'images.generations') {
+          console.log(`Skipping ImageGen model: ${modelId}`);
+          continue;
+        }
+
         // Update the message to indicate which model is being checked
         messageDiv.textContent = `Checking model ${formatModelName(modelId)} (${i + 1}/${models.length})...`;
         
@@ -368,32 +407,30 @@
         }
         console.log(`Model ${modelId} is ${isWorking ? 'working' : 'not working'}.`);
         const status = isWorking ? 'Working' : 'Down';
-        let typeLabel = 'Unknown';
-
-        if (modelType === 'chat.completions') {
-          typeLabel = 'Chatbot';
-        } else if (modelType === 'images.generations') {
-          typeLabel = 'ImageGen';
-        }
 
         const modelName = formatModelName(modelId);
-        addRowToTable(typeLabel, modelName, status);
+        addRowToTable(modelName, status, false);
       }
 
       messageDiv.textContent = 'Status check completed.';
       checkButton.disabled = false;
     }
 
-    function addRowToTable(type, name, status) {
+    /**
+     * Adds a row to the status table.
+     * @param {string} name - The name of the model or proxy.
+     * @param {string} status - The status ("Working" or "Down").
+     * @param {boolean} isProxy - Indicates if the row is for the proxy.
+     */
+    function addRowToTable(name, status, isProxy) {
       const statusTable = document.getElementById('statusTable');
       const row = document.createElement('tr');
 
-      const typeCell = document.createElement('td');
-      typeCell.textContent = type;
-      row.appendChild(typeCell);
-
       const nameCell = document.createElement('td');
       nameCell.textContent = name;
+      if (isProxy) {
+        nameCell.classList.add('proxy'); // Apply proxy-specific styling
+      }
       row.appendChild(nameCell);
 
       const statusCell = document.createElement('td');
