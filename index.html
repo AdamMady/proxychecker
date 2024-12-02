@@ -24,11 +24,12 @@
       color: #e0e0e0;
       text-transform: lowercase;
       padding: 20px;
+      font-size: 16px; /* Set base font size */
     }
     h1 {
       margin-bottom: 20px;
       color: #ffffff;
-      font-size: 2em;
+      font-size: 2rem; /* Use rem units */
       white-space: nowrap;
     }
     .container {
@@ -36,7 +37,6 @@
       flex-direction: column;
       align-items: center;
       width: 100%;
-      max-width: 600px;
       padding: 20px;
       background-color: #333333;
       border-radius: 8px;
@@ -45,7 +45,7 @@
     }
     input, textarea {
       margin: 10px 0;
-      padding: 10px;
+      padding: 12px;
       font-size: 1rem;
       border-radius: 5px;
       background-color: #2a2a2a;
@@ -59,7 +59,7 @@
       background-color: #6c757d;
       color: white;
       border: none;
-      padding: 10px;
+      padding: 12px;
       border-radius: 5px;
       font-size: 1rem;
       transition: background-color 0.3s;
@@ -70,25 +70,29 @@
     button:hover {
       background-color: #5a6268;
     }
+    button:disabled {
+      background-color: #4e555b;
+      cursor: not-allowed;
+    }
     .status {
       margin-top: 20px;
       width: 100%;
     }
     .status h2 {
       margin-bottom: 10px;
-      font-size: 1.5em;
+      font-size: 1.5rem;
       color: #ffffff;
     }
     .status table {
       width: 100%;
       border-collapse: collapse;
-      overflow-x: auto;
+      table-layout: auto;
     }
     .status th, .status td {
-      padding: 10px;
+      padding: 12px;
       border: 1px solid #555555;
       text-align: left;
-      font-size: 0.9rem;
+      font-size: 1rem;
     }
     .status th {
       background-color: #444444;
@@ -103,62 +107,67 @@
     }
     .message {
       margin-top: 20px;
-      font-size: 1.1em;
+      font-size: 1.1rem;
     }
 
     /* Responsive Styles */
     @media (max-width: 768px) {
       h1 {
-        font-size: 1.8em;
+        font-size: 2.2rem; /* Slightly increase font size */
       }
       .container {
         padding: 15px;
       }
       input, textarea {
-        font-size: 0.95rem;
-        padding: 8px;
+        font-size: 1.1rem;
+        padding: 14px;
       }
       button {
-        font-size: 0.95rem;
-        padding: 8px;
+        font-size: 1.1rem;
+        padding: 14px;
       }
       .status h2 {
-        font-size: 1.3em;
+        font-size: 1.7rem;
       }
       .status th, .status td {
-        padding: 8px;
-        font-size: 0.85rem;
+        padding: 14px;
+        font-size: 1.1rem;
+      }
+      .message {
+        font-size: 1.2rem;
       }
     }
 
     @media (max-width: 480px) {
       h1 {
-        font-size: 1.5em;
+        font-size: 2.4rem; /* Further increase font size */
       }
       .container {
         padding: 10px;
       }
       input, textarea {
-        font-size: 0.9rem;
-        padding: 6px;
+        font-size: 1.2rem;
+        padding: 16px;
       }
       button {
-        font-size: 0.9rem;
-        padding: 6px;
+        font-size: 1.2rem;
+        padding: 16px;
       }
       .status h2 {
-        font-size: 1.2em;
+        font-size: 1.8rem;
       }
       .status th, .status td {
-        padding: 6px;
-        font-size: 0.8rem;
+        padding: 16px;
+        font-size: 1.2rem;
       }
-    }
-
-    /* Table Scroll for Small Screens */
-    .status table {
-      display: block;
-      overflow-x: auto;
+      .message {
+        font-size: 1.3rem;
+      }
+      /* Make table horizontally scrollable on very small screens */
+      .status table {
+        display: block;
+        overflow-x: auto;
+      }
     }
 
     /* Improve touch target sizes */
@@ -171,7 +180,7 @@
   <h1>status checker</h1>
   <div class="container">
     <input type="text" id="apiUrl" placeholder="enter url with /v1/ (leave blank for default)">
-    <button onclick="checkStatus()">check status</button>
+    <button id="checkButton" onclick="checkStatus()">check status</button>
     <div class="message" id="message"></div>
   </div>
   <div class="status" id="status">
@@ -187,10 +196,12 @@
   </div>
 
   <script>
-    async function getDefaultProxy() {
+    let currentAbortController = null;
+
+    async function getDefaultProxy(signal) {
       const defaultProxyUrl = 'https://mubilop.tech/proxy';
       try {
-        const response = await fetch(defaultProxyUrl);
+        const response = await fetch(defaultProxyUrl, { signal });
         if (response.ok) {
           const proxy = await response.text();
           return proxy.trim();
@@ -198,25 +209,33 @@
           throw new Error(`Failed to retrieve default proxy: ${response.status} ${response.statusText}`);
         }
       } catch (error) {
-        console.error('Error retrieving default proxy:', error);
-        alert('Error retrieving default proxy. Please enter a valid API URL.');
+        if (error.name === 'AbortError') {
+          console.log('Default proxy fetch aborted.');
+        } else {
+          console.error('Error retrieving default proxy:', error);
+          alert('Error retrieving default proxy. Please enter a valid API URL.');
+        }
         return null;
       }
     }
 
-    async function checkProxy(apiUrl) {
+    async function checkProxy(apiUrl, signal) {
       try {
-        const response = await fetch(apiUrl);
+        const response = await fetch(apiUrl, { signal });
         return response.ok;
       } catch (error) {
-        console.error('Error checking proxy:', error);
+        if (error.name === 'AbortError') {
+          console.log('Proxy check aborted.');
+        } else {
+          console.error('Error checking proxy:', error);
+        }
         return false;
       }
     }
 
-    async function getModels(apiUrl) {
+    async function getModels(apiUrl, signal) {
       try {
-        const response = await fetch(`${apiUrl}/models`);
+        const response = await fetch(`${apiUrl}/models`, { signal });
         if (response.ok) {
           const data = await response.json();
           return data.data || [];
@@ -225,14 +244,18 @@
           return [];
         }
       } catch (error) {
-        console.error('Error fetching models:', error);
+        if (error.name === 'AbortError') {
+          console.log('Get models fetch aborted.');
+        } else {
+          console.error('Error fetching models:', error);
+        }
         return [];
       }
     }
 
-    async function checkModel(apiUrl, modelId) {
+    async function checkModel(apiUrl, modelId, signal) {
       try {
-        const response = await fetch(`${apiUrl}/api/working?model=${modelId}`);
+        const response = await fetch(`${apiUrl}/api/working?model=${modelId}`, { signal });
         if (response.ok) {
           const data = await response.text();
           return data.trim().toLowerCase() === 'true';
@@ -241,7 +264,11 @@
           return false;
         }
       } catch (error) {
-        console.error(`Error checking model ${modelId}:`, error);
+        if (error.name === 'AbortError') {
+          console.log(`Check model ${modelId} aborted.`);
+        } else {
+          console.error(`Error checking model ${modelId}:`, error);
+        }
         return false;
       }
     }
@@ -251,24 +278,40 @@
     }
 
     async function checkStatus() {
+      // If there's an ongoing process, abort it
+      if (currentAbortController) {
+        currentAbortController.abort();
+      }
+
+      // Create a new AbortController for the new process
+      currentAbortController = new AbortController();
+      const { signal } = currentAbortController;
+
       const apiUrlInput = document.getElementById('apiUrl').value.trim();
       const messageDiv = document.getElementById('message');
       const statusTable = document.getElementById('statusTable');
+      const checkButton = document.getElementById('checkButton');
+      
+      // Disable the button to prevent multiple clicks
+      checkButton.disabled = true;
+
+      // Clear previous status and headers
       statusTable.innerHTML = `
         <tr>
           <th>Type</th>
           <th>Name</th>
           <th>Status</th>
         </tr>
-      `; // Clear previous status and headers
+      `;
       messageDiv.textContent = ''; // Clear previous message
 
       let apiUrl = apiUrlInput;
       if (!apiUrl) {
         messageDiv.textContent = 'Using latest default proxy...';
-        apiUrl = await getDefaultProxy();
+        apiUrl = await getDefaultProxy(signal);
         if (!apiUrl) {
           messageDiv.textContent = 'Cannot proceed without a valid proxy URL.';
+          checkButton.disabled = false;
           return;
         }
       } else {
@@ -278,11 +321,17 @@
       }
 
       messageDiv.textContent = 'Checking proxy...';
-      const proxyWorking = await checkProxy(apiUrl);
+      const proxyWorking = await checkProxy(apiUrl, signal);
+      if (signal.aborted) {
+        checkButton.disabled = false;
+        return;
+      }
+
       if (!proxyWorking) {
         messageDiv.textContent = 'Proxy is down. Cannot proceed further.';
         // Add Proxy status to table
         addRowToTable('Proxy', 'Proxy', 'Down');
+        checkButton.disabled = false;
         return;
       }
 
@@ -290,9 +339,15 @@
       addRowToTable('Proxy', apiUrl, 'Working');
       messageDiv.textContent = 'Proxy is working. Fetching models...';
 
-      const models = await getModels(apiUrl);
+      const models = await getModels(apiUrl, signal);
+      if (signal.aborted) {
+        checkButton.disabled = false;
+        return;
+      }
+
       if (models.length === 0) {
         messageDiv.textContent = 'No models found.';
+        checkButton.disabled = false;
         return;
       }
 
@@ -306,7 +361,11 @@
         // Update the message to indicate which model is being checked
         messageDiv.textContent = `Checking model ${formatModelName(modelId)} (${i + 1}/${models.length})...`;
         
-        const isWorking = await checkModel(apiUrl, modelId);
+        const isWorking = await checkModel(apiUrl, modelId, signal);
+        if (signal.aborted) {
+          checkButton.disabled = false;
+          return;
+        }
         console.log(`Model ${modelId} is ${isWorking ? 'working' : 'not working'}.`);
         const status = isWorking ? 'Working' : 'Down';
         let typeLabel = 'Unknown';
@@ -322,6 +381,7 @@
       }
 
       messageDiv.textContent = 'Status check completed.';
+      checkButton.disabled = false;
     }
 
     function addRowToTable(type, name, status) {
@@ -346,42 +406,6 @@
       row.appendChild(statusCell);
 
       statusTable.appendChild(row);
-    }
-
-    function displayResults(results) {
-      const statusDiv = document.getElementById('status');
-      const table = document.createElement('table');
-
-      // Create table headers
-      const headerRow = document.createElement('tr');
-      ['Type', 'Name', 'Status'].forEach(text => {
-        const th = document.createElement('th');
-        th.textContent = text;
-        headerRow.appendChild(th);
-      });
-      table.appendChild(headerRow);
-
-      // Create table rows
-      results.forEach(result => {
-        const row = document.createElement('tr');
-
-        const typeCell = document.createElement('td');
-        typeCell.textContent = result.type;
-        row.appendChild(typeCell);
-
-        const nameCell = document.createElement('td');
-        nameCell.textContent = result.name;
-        row.appendChild(nameCell);
-
-        const statusCell = document.createElement('td');
-        statusCell.textContent = result.status;
-        statusCell.classList.add(result.status.toLowerCase());
-        row.appendChild(statusCell);
-
-        table.appendChild(row);
-      });
-
-      statusDiv.appendChild(table);
     }
   </script>
 </body>
