@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Proxy and Model Status Checker</title>
+  <title>Status Checker</title>
   <style>
     /* Your existing styles */
     * {
@@ -104,7 +104,7 @@
   </style>
 </head>
 <body>
-  <h1>Proxy and Model Status Checker</h1>
+  <h1>Status Checker</h1>
   <div class="container">
     <input type="text" id="apiUrl" placeholder="Enter reverse proxy API base URL (leave blank for default)">
     <button onclick="checkStatus()">Check Status</button>
@@ -216,7 +216,7 @@
       const results = [];
       results.push({
         type: 'Proxy',
-        name: 'Proxy',
+        name: '{apiUrl}',
         status: 'Working',
       });
 
