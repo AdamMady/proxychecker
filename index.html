@@ -3,8 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <title>Status Checker</title>
+  <!-- Meta viewport tag for responsive design -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    /* Your existing styles */
+    /* Reset and base styles */
     * {
       box-sizing: border-box;
       margin: 0;
@@ -80,11 +82,13 @@
     .status table {
       width: 100%;
       border-collapse: collapse;
+      overflow-x: auto;
     }
     .status th, .status td {
       padding: 10px;
       border: 1px solid #555555;
       text-align: left;
+      font-size: 0.9rem;
     }
     .status th {
       background-color: #444444;
@@ -100,6 +104,66 @@
     .message {
       margin-top: 20px;
       font-size: 1.1em;
+    }
+
+    /* Responsive Styles */
+    @media (max-width: 768px) {
+      h1 {
+        font-size: 1.8em;
+      }
+      .container {
+        padding: 15px;
+      }
+      input, textarea {
+        font-size: 0.95rem;
+        padding: 8px;
+      }
+      button {
+        font-size: 0.95rem;
+        padding: 8px;
+      }
+      .status h2 {
+        font-size: 1.3em;
+      }
+      .status th, .status td {
+        padding: 8px;
+        font-size: 0.85rem;
+      }
+    }
+
+    @media (max-width: 480px) {
+      h1 {
+        font-size: 1.5em;
+      }
+      .container {
+        padding: 10px;
+      }
+      input, textarea {
+        font-size: 0.9rem;
+        padding: 6px;
+      }
+      button {
+        font-size: 0.9rem;
+        padding: 6px;
+      }
+      .status h2 {
+        font-size: 1.2em;
+      }
+      .status th, .status td {
+        padding: 6px;
+        font-size: 0.8rem;
+      }
+    }
+
+    /* Table Scroll for Small Screens */
+    .status table {
+      display: block;
+      overflow-x: auto;
+    }
+
+    /* Improve touch target sizes */
+    button, input, textarea {
+      touch-action: manipulation;
     }
   </style>
 </head>
