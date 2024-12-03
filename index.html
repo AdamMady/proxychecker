@@ -133,13 +133,18 @@
       font-size: 1.1rem;
     }
     /* Progress Bar Styles */
-    .progress-container {
+    .progress-wrapper {
       width: 100%;
       max-width: 800px;
+      display: none; /* Initially hidden */
+      align-items: center;
+      margin-top: 20px;
+    }
+    .progress-container {
+      flex: 1;
       background-color: #555555;
       height: 20px;
       border-radius: 5px;
-      margin-top: 20px;
       overflow: hidden;
     }
     .progress-bar {
@@ -148,6 +153,19 @@
       background-color: #28a745;
       border-radius: 5px;
       transition: width 0.1s linear;
+    }
+    #cancelButton {
+      margin-left: 10px;
+      width: auto;
+      height: 100%;
+      padding: 5px 10px;
+      font-size: 1rem;
+      background-color: #dc3545;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    #cancelButton:hover {
+      background-color: #c82333;
     }
     /* Responsive Styles */
     @media (max-width: 768px) {
@@ -175,6 +193,10 @@
       .message {
         font-size: 1.2rem;
       }
+      #cancelButton {
+        font-size: 0.9rem;
+        padding: 5px 10px;
+      }
     }
     @media (max-width: 480px) {
       h1 {
@@ -201,6 +223,10 @@
       .message {
         font-size: 1.3rem;
       }
+      #cancelButton {
+        font-size: 0.8rem;
+        padding: 4px 8px;
+      }
     }
     /* Improve touch target sizes */
     button, input, textarea {
@@ -213,9 +239,12 @@
   <div class="container">
     <input type="text" id="apiUrl" placeholder="enter url with /v1/ (leave blank for default)">
     <button id="checkButton" onclick="checkStatus()">check status</button>
-    <!-- Progress Bar -->
-    <div class="progress-container" id="progressContainer" style="display: none;">
-      <div class="progress-bar" id="progressBar"></div>
+    <!-- Progress Wrapper -->
+    <div class="progress-wrapper" id="progressWrapper">
+      <div class="progress-container" id="progressContainer">
+        <div class="progress-bar" id="progressBar"></div>
+      </div>
+      <button id="cancelButton" onclick="cancelStatusCheck()">Cancel</button>
     </div>
     <!-- Message Div (Removed) -->
     <!-- <div class="message" id="message"></div> -->
@@ -231,9 +260,12 @@
       <!-- Rows will be added here dynamically -->
     </table>
   </div>
+  <!-- Copy Results Button -->
+  <button id="copyButton" onclick="copyResults()" style="display: none; width: 100%; max-width: 800px; margin-top: 20px;">Copy Results</button>
 
   <script>
     let currentAbortController = null;
+    let pendingReqCells = [];
 
     async function getDefaultProxy(signal) {
       const defaultProxyUrl = 'https://mubilop.tech/proxy';
@@ -355,6 +387,12 @@
           statusCell.classList.remove('yellow');
           statusCell.classList.add('red');
         }
+      } finally {
+        // Remove the cell from pendingReqCells
+        const index = pendingReqCells.indexOf(statusCell);
+        if (index > -1) {
+          pendingReqCells.splice(index, 1);
+        }
       }
     }
 
@@ -376,25 +414,31 @@
       // const messageDiv = document.getElementById('message'); // Removed
       const statusTable = document.getElementById('statusTable');
       const checkButton = document.getElementById('checkButton');
-      const progressContainer = document.getElementById('progressContainer');
+      const progressWrapper = document.getElementById('progressWrapper');
       const progressBar = document.getElementById('progressBar');
-      
+      const cancelButton = document.getElementById('cancelButton');
+      const copyButton = document.getElementById('copyButton');
+
       // Disable the button to prevent multiple clicks
       checkButton.disabled = true;
 
       // Reset progress bar
       progressBar.style.width = '0%';
-      progressContainer.style.display = 'block';
+      progressWrapper.style.display = 'flex';
+      cancelButton.style.display = 'block';
+      copyButton.style.display = 'none'; // Hide the copy button
 
       // Clear previous status and headers
       statusTable.innerHTML = `
         <tr>
-          <th class="name">Name</th>
-          <th class="up">Up</th>
-          <th class="req">Req</th>
+          <th class="name">name</th>
+          <th class="up">up</th>
+          <th class="req">req</th>
         </tr>
       `;
       // messageDiv.textContent = ''; // Clear previous message
+
+      pendingReqCells = []; // Reset pendingReqCells
 
       let apiUrl = apiUrlInput;
       if (!apiUrl) {
@@ -402,8 +446,9 @@
         apiUrl = await getDefaultProxy(signal);
         if (!apiUrl) {
           // messageDiv.textContent = 'Cannot proceed without a valid proxy URL.';
-          progressContainer.style.display = 'none';
+          progressWrapper.style.display = 'none';
           checkButton.disabled = false;
+          cancelButton.style.display = 'none';
           return;
         }
       } else {
@@ -415,8 +460,9 @@
       // messageDiv.textContent = 'Checking proxy...';
       const proxyWorking = await checkProxy(apiUrl, signal);
       if (signal.aborted) {
-        progressContainer.style.display = 'none';
+        progressWrapper.style.display = 'none';
         checkButton.disabled = false;
+        cancelButton.style.display = 'none';
         return;
       }
 
@@ -425,8 +471,9 @@
 
       if (!proxyWorking) {
         // messageDiv.textContent = 'Proxy is down. Cannot proceed further.';
-        progressContainer.style.display = 'none';
+        progressWrapper.style.display = 'none';
         checkButton.disabled = false;
+        cancelButton.style.display = 'none';
         return;
       } else {
         // Update proxy's "req" cell to '✓' and make it green
@@ -438,8 +485,9 @@
 
       const models = await getModels(apiUrl, signal);
       if (signal.aborted) {
-        progressContainer.style.display = 'none';
+        progressWrapper.style.display = 'none';
         checkButton.disabled = false;
+        cancelButton.style.display = 'none';
         return;
       }
 
@@ -448,8 +496,9 @@
 
       if (filteredModels.length === 0) {
         // messageDiv.textContent = 'No models found.';
-        progressContainer.style.display = 'none';
+        progressWrapper.style.display = 'none';
         checkButton.disabled = false;
+        cancelButton.style.display = 'none';
         return;
       }
 
@@ -489,7 +538,13 @@
         } else {
           // Model is down, set req cell to '✗' and make it red
           statusCell.textContent = '✗';
+          statusCell.classList.remove('yellow');
           statusCell.classList.add('red');
+          // Remove from pendingReqCells
+          const index = pendingReqCells.indexOf(statusCell);
+          if (index > -1) {
+            pendingReqCells.splice(index, 1);
+          }
         }
 
         // Update progress
@@ -513,8 +568,10 @@
       progressBar.style.width = '100%';
 
       // messageDiv.textContent = 'Status check completed.';
-      progressContainer.style.display = 'none';
+      progressWrapper.style.display = 'none';
       checkButton.disabled = false;
+      cancelButton.style.display = 'none';
+      copyButton.style.display = 'block'; // Show the copy button
     }
 
     /**
@@ -566,7 +623,94 @@
 
       statusTable.appendChild(row);
 
+      if (!isProxy && isUp) {
+        pendingReqCells.push(reqCell); // Add to pendingReqCells
+      }
+
       return reqCell;
+    }
+
+    function cancelStatusCheck() {
+      if (currentAbortController) {
+        currentAbortController.abort();
+        currentAbortController = null;
+
+        // Update remaining reqCells
+        pendingReqCells.forEach(reqCell => {
+          reqCell.textContent = '✗';
+          reqCell.classList.remove('yellow');
+          reqCell.classList.add('red');
+        });
+
+        // Clear pendingReqCells
+        pendingReqCells = [];
+
+        // Update UI
+        const progressBar = document.getElementById('progressBar');
+        const progressWrapper = document.getElementById('progressWrapper');
+        const cancelButton = document.getElementById('cancelButton');
+        const copyButton = document.getElementById('copyButton');
+        const checkButton = document.getElementById('checkButton');
+
+        progressBar.style.width = '100%';
+        progressWrapper.style.display = 'none';
+        cancelButton.style.display = 'none';
+        copyButton.style.display = 'block';
+        checkButton.disabled = false;
+      }
+    }
+
+    function copyResults() {
+      const statusTable = document.getElementById('statusTable');
+      const rows = statusTable.querySelectorAll('tr');
+
+      let resultsText = 'model status:\n';
+
+      let totalModels = 0;
+      let totalUp = 0;
+      let checked = 0;
+      let successful = 0;
+      let failed = 0;
+
+      // Skip the header row (index 0)
+      for (let i = 1; i < rows.length; i++) {
+        const cells = rows[i].querySelectorAll('td');
+        const name = cells[0].textContent.trim();
+        const up = cells[1].textContent.trim();
+        const req = cells[2].textContent.trim();
+
+        // Skip the proxy row
+        if (cells[0].classList.contains('proxy')) {
+          continue;
+        }
+
+        totalModels += 1;
+
+        const upIcon = (up === '✓' || up === '✅') ? '✅' : '❌';
+        if (upIcon === '✅') totalUp += 1; checked += 1;
+
+        const reqIcon = (req === '✓' || req === '✅') ? '✅' : '❌';
+        if (reqIcon === '✅') {
+          successful += 1;
+        } else if (reqIcon === '❌') {
+          failed += 1;
+        }
+
+        const modelName = name.replace(/\s+/g, '-').toLowerCase();
+        resultsText += `${modelName} > ${upIcon} Up >> Req ${reqIcon}\n`;
+      }
+
+      resultsText += `total models: ${totalModels} | total up: ${totalUp} | checked: ${checked} | successful: ${successful} | failed: ${failed}`;
+
+      // Copy resultsText to clipboard
+      navigator.clipboard.writeText(resultsText)
+        .then(() => {
+          alert('Results copied to clipboard.');
+        })
+        .catch(err => {
+          console.error('Failed to copy results:', err);
+          alert('Failed to copy results.');
+        });
     }
   </script>
 </body>
