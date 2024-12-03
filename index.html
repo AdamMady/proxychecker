@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Status Checker</title>
+  <title>status checker</title>
   <!-- Meta viewport tag for responsive design -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
@@ -668,7 +668,6 @@
 
       let totalModels = 0;
       let totalUp = 0;
-      let checked = 0;
       let successful = 0;
       let failed = 0;
 
@@ -687,7 +686,7 @@
         totalModels += 1;
 
         const upIcon = (up === '✓' || up === '✅') ? '✅' : '❌';
-        if (upIcon === '✅') totalUp += 1; checked += 1;
+        if (upIcon === '✅') totalUp += 1;
 
         const reqIcon = (req === '✓' || req === '✅') ? '✅' : '❌';
         if (reqIcon === '✅') {
@@ -700,7 +699,7 @@
         resultsText += `${modelName} > ${upIcon} Up >> Req ${reqIcon}\n`;
       }
 
-      resultsText += `total models: ${totalModels} | total up: ${totalUp} | checked: ${checked} | successful: ${successful} | failed: ${failed}`;
+      resultsText += `total models: ${totalModels} | total up: ${totalUp} | successful: ${successful} | failed: ${failed}`;
 
       // Copy resultsText to clipboard
       navigator.clipboard.writeText(resultsText)
