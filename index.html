@@ -22,7 +22,6 @@
       font-family: Helvetica, Arial, sans-serif;
       background-color: #1e1e1e;
       color: #e0e0e0;
-      text-transform: lowercase;
       padding: 20px;
       font-size: 16px; /* Set base font size */
     }
@@ -37,6 +36,7 @@
       flex-direction: column;
       align-items: center;
       width: 100%;
+      max-width: 800px; /* Limit the container width */
       padding: 20px;
       background-color: #333333;
       border-radius: 8px;
@@ -77,6 +77,10 @@
     .status {
       margin-top: 20px;
       width: 100%;
+      max-width: 800px; /* Ensure the table doesn't exceed the container width */
+      display: flex;
+      flex-direction: column;
+      align-items: center; /* Center the table */
     }
     .status h2 {
       margin-bottom: 10px;
@@ -86,46 +90,37 @@
     /* Modified CSS for the table */
     .status table {
       width: 100%;
-      border-collapse: separate; /* Changed from collapse to separate */
-      border-spacing: 0; /* Remove spacing between cells */
-      border-radius: 8px; /* Rounded corners */
-      overflow: hidden; /* Ensure content respects the border radius */
-      background-color: #333333; /* Ensure table has a background color */
-      box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.3); /* Optional: Add shadow for depth */
+      border-collapse: collapse;
+      border-radius: 8px;
+      overflow: hidden;
+      background-color: #333333;
     }
-
-    /* Optional: Add a subtle separator between header and body */
-    .status th {
-      background-color: #444444;
-      position: relative;
-      z-index: 1;
-    }
-
-    .status th::after {
-      content: "";
-      position: absolute;
-      left: 0;
-      bottom: -1px;
-      width: 100%;
-      height: 1px;
-      background-color: #555555;
-      z-index: -1;
-    }
-
     .status th, .status td {
       padding: 12px;
       border: 1px solid #555555;
       text-align: left;
       font-size: 1rem;
-      background-clip: padding-box; /* Prevent borders from overlapping the border-radius */
     }
-
-    .status td.working {
+    /* Adjust column widths */
+    .status th.name, .status td.name {
+      width: 60%; /* Name column takes up 60% */
+      word-wrap: break-word;
+    }
+    .status th.up, .status td.up,
+    .status th.req, .status td.req {
+      width: 20%; /* Up and Req columns take up 20% each */
+      text-align: center;
+    }
+    .status td.up.green, .status td.req.green {
       background-color: #28a745; /* Green */
       color: #ffffff;
     }
-    .status td.down {
+    .status td.up.red, .status td.req.red {
       background-color: #dc3545; /* Red */
+      color: #ffffff;
+    }
+    .status td.req.yellow {
+      background-color: #ffc107; /* Yellow */
       color: #ffffff;
     }
     .status td.proxy {
@@ -137,11 +132,27 @@
       margin-top: 20px;
       font-size: 1.1rem;
     }
-
+    /* Progress Bar Styles */
+    .progress-container {
+      width: 100%;
+      max-width: 800px;
+      background-color: #555555;
+      height: 20px;
+      border-radius: 5px;
+      margin-top: 20px;
+      overflow: hidden;
+    }
+    .progress-bar {
+      width: 0%;
+      height: 100%;
+      background-color: #28a745;
+      border-radius: 5px;
+      transition: width 0.1s linear;
+    }
     /* Responsive Styles */
     @media (max-width: 768px) {
       h1 {
-        font-size: 2.2rem; /* Slightly increase font size */
+        font-size: 2.2rem;
       }
       .container {
         padding: 15px;
@@ -165,10 +176,9 @@
         font-size: 1.2rem;
       }
     }
-
     @media (max-width: 480px) {
       h1 {
-        font-size: 2.4rem; /* Further increase font size */
+        font-size: 2.4rem;
       }
       .container {
         padding: 10px;
@@ -191,13 +201,7 @@
       .message {
         font-size: 1.3rem;
       }
-      /* Make table horizontally scrollable on very small screens */
-      .status table {
-        display: block;
-        overflow-x: auto;
-      }
     }
-
     /* Improve touch target sizes */
     button, input, textarea {
       touch-action: manipulation;
@@ -209,14 +213,20 @@
   <div class="container">
     <input type="text" id="apiUrl" placeholder="enter url with /v1/ (leave blank for default)">
     <button id="checkButton" onclick="checkStatus()">check status</button>
-    <div class="message" id="message"></div>
+    <!-- Progress Bar -->
+    <div class="progress-container" id="progressContainer" style="display: none;">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+    <!-- Message Div (Removed) -->
+    <!-- <div class="message" id="message"></div> -->
   </div>
   <div class="status" id="status">
-    <h2>Model Status</h2>
+    <h2>model status</h2>
     <table id="statusTable">
       <tr>
-        <th>Name</th>
-        <th>Status</th>
+        <th class="name">name</th>
+        <th class="up">up</th>
+        <th class="req">req</th>
       </tr>
       <!-- Rows will be added here dynamically -->
     </table>
@@ -280,23 +290,71 @@
       }
     }
 
-    async function checkModel(apiUrl, modelId, signal) {
+    async function checkModelUp(apiUrl, modelId, signal) {
       try {
         const response = await fetch(`${apiUrl}/api/working?model=${modelId}`, { signal });
         if (response.ok) {
           const data = await response.text();
           return data.trim().toLowerCase() === 'true';
         } else {
-          console.error(`Error checking model ${modelId}: ${response.status} ${response.statusText}`);
+          console.error(`Error checking if model ${modelId} is up: ${response.status} ${response.statusText}`);
           return false;
         }
       } catch (error) {
         if (error.name === 'AbortError') {
-          console.log(`Check model ${modelId} aborted.`);
+          console.log(`Check if model ${modelId} is up aborted.`);
         } else {
-          console.error(`Error checking model ${modelId}:`, error);
+          console.error(`Error checking if model ${modelId} is up:`, error);
         }
         return false;
+      }
+    }
+
+    async function checkModelStatus(apiUrl, modelId, statusCell, signal) {
+      try {
+        const response = await fetch(`${apiUrl}/chat/completions`, {
+          method: 'POST',
+          signal,
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: modelId,
+            messages: [
+              { role: 'user', content: 'please output only a period "." to make sure you are online' }
+            ]
+          })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const content = data.choices[0].message.content.trim();
+          if (content === '.') {
+            // Correct response
+            statusCell.textContent = '✓';
+            statusCell.classList.remove('yellow');
+            statusCell.classList.add('green');
+          } else {
+            // Incorrect response
+            statusCell.textContent = '✗';
+            statusCell.classList.remove('yellow');
+            statusCell.classList.add('red');
+          }
+        } else {
+          console.error(`Error checking model ${modelId} status: ${response.status} ${response.statusText}`);
+          statusCell.textContent = '✗';
+          statusCell.classList.remove('yellow');
+          statusCell.classList.add('red');
+        }
+      } catch (error) {
+        if (error.name === 'AbortError') {
+          console.log(`Check model ${modelId} status aborted.`);
+        } else {
+          console.error(`Error checking model ${modelId} status:`, error);
+          statusCell.textContent = '✗';
+          statusCell.classList.remove('yellow');
+          statusCell.classList.add('red');
+        }
       }
     }
 
@@ -315,28 +373,36 @@
       const { signal } = currentAbortController;
 
       const apiUrlInput = document.getElementById('apiUrl').value.trim();
-      const messageDiv = document.getElementById('message');
+      // const messageDiv = document.getElementById('message'); // Removed
       const statusTable = document.getElementById('statusTable');
       const checkButton = document.getElementById('checkButton');
+      const progressContainer = document.getElementById('progressContainer');
+      const progressBar = document.getElementById('progressBar');
       
       // Disable the button to prevent multiple clicks
       checkButton.disabled = true;
 
+      // Reset progress bar
+      progressBar.style.width = '0%';
+      progressContainer.style.display = 'block';
+
       // Clear previous status and headers
       statusTable.innerHTML = `
         <tr>
-          <th>Name</th>
-          <th>Status</th>
+          <th class="name">Name</th>
+          <th class="up">Up</th>
+          <th class="req">Req</th>
         </tr>
       `;
-      messageDiv.textContent = ''; // Clear previous message
+      // messageDiv.textContent = ''; // Clear previous message
 
       let apiUrl = apiUrlInput;
       if (!apiUrl) {
-        messageDiv.textContent = 'Using latest default proxy...';
+        // messageDiv.textContent = 'Using latest default proxy...';
         apiUrl = await getDefaultProxy(signal);
         if (!apiUrl) {
-          messageDiv.textContent = 'Cannot proceed without a valid proxy URL.';
+          // messageDiv.textContent = 'Cannot proceed without a valid proxy URL.';
+          progressContainer.style.display = 'none';
           checkButton.disabled = false;
           return;
         }
@@ -346,27 +412,33 @@
         }
       }
 
-      messageDiv.textContent = 'Checking proxy...';
+      // messageDiv.textContent = 'Checking proxy...';
       const proxyWorking = await checkProxy(apiUrl, signal);
       if (signal.aborted) {
+        progressContainer.style.display = 'none';
         checkButton.disabled = false;
         return;
       }
+
+      // Add Proxy status to table
+      const proxyStatusCell = addRowToTable(apiUrl, proxyWorking, true);
 
       if (!proxyWorking) {
-        messageDiv.textContent = 'Proxy is down. Cannot proceed further.';
-        // Add Proxy status to table with special styling
-        addRowToTable('Proxy', 'Down', true);
+        // messageDiv.textContent = 'Proxy is down. Cannot proceed further.';
+        progressContainer.style.display = 'none';
         checkButton.disabled = false;
         return;
+      } else {
+        // Update proxy's "req" cell to '✓' and make it green
+        proxyStatusCell.textContent = '✓';
+        proxyStatusCell.classList.add('green');
       }
 
-      // Add Proxy status to table with special styling
-      addRowToTable(apiUrl, 'Working', true);
-      messageDiv.textContent = 'Proxy is working. Fetching models...';
+      // messageDiv.textContent = 'Proxy is working. Fetching models...';
 
       const models = await getModels(apiUrl, signal);
       if (signal.aborted) {
+        progressContainer.style.display = 'none';
         checkButton.disabled = false;
         return;
       }
@@ -375,70 +447,126 @@
       const filteredModels = models.filter(model => model.type !== 'images.generations');
 
       if (filteredModels.length === 0) {
-        messageDiv.textContent = 'No models found.';
+        // messageDiv.textContent = 'No models found.';
+        progressContainer.style.display = 'none';
         checkButton.disabled = false;
         return;
       }
 
-      messageDiv.textContent = `Found ${filteredModels.length} models. Checking models...`;
+      // Prepare progress tracking
+      const totalModels = filteredModels.length;
+      let completedModels = 0;
 
-      // Check models in parallel
-      const modelPromises = filteredModels.map(model => {
+      // Set the total duration for the progress bar (in milliseconds)
+      const totalDuration = 102000; // 1.7 minutes = 102,000 milliseconds
+      const startTime = Date.now();
+
+      const updateProgressBar = () => {
+        const elapsedTime = Date.now() - startTime;
+        const estimatedCompletion = Math.min(elapsedTime / totalDuration, 1);
+        const progressByTime = estimatedCompletion * 100;
+        const progressByModels = (completedModels / totalModels) * 100;
+        const progress = Math.max(progressByTime, progressByModels);
+        progressBar.style.width = `${progress}%`;
+      };
+
+      // Start checking models
+      const modelPromises = filteredModels.map(async (model) => {
         const modelId = model.id || 'unknown-id';
         const modelName = formatModelName(modelId);
 
-        return checkModel(apiUrl, modelId, signal)
-          .then(isWorking => {
-            if (signal.aborted) {
-              return;
-            }
-            console.log(`Model ${modelId} is ${isWorking ? 'working' : 'not working'}.`);
-            const status = isWorking ? 'Working' : 'Down';
+        const isUp = await checkModelUp(apiUrl, modelId, signal);
+        if (signal.aborted) {
+          return;
+        }
 
-            addRowToTable(modelName, status, false);
-          })
-          .catch(error => {
-            if (error.name === 'AbortError') {
-              console.log(`Check model ${modelId} aborted.`);
-            } else {
-              console.error(`Error checking model ${modelId}:`, error);
-            }
-          });
+        // Add the row to the table and get the status cell
+        const statusCell = addRowToTable(modelName, isUp, false);
+
+        if (isUp) {
+          // Start the prompt request
+          await checkModelStatus(apiUrl, modelId, statusCell, signal);
+        } else {
+          // Model is down, set req cell to '✗' and make it red
+          statusCell.textContent = '✗';
+          statusCell.classList.add('red');
+        }
+
+        // Update progress
+        completedModels += 1;
+        updateProgressBar();
       });
 
+      // Periodically update the progress bar based on time
+      const progressInterval = setInterval(() => {
+        if (completedModels >= totalModels || signal.aborted) {
+          clearInterval(progressInterval);
+          return;
+        }
+        updateProgressBar();
+      }, 1000); // Update every second
+
+      // Wait for all model checks to complete
       await Promise.all(modelPromises);
 
-      messageDiv.textContent = 'Status check completed.';
+      // Ensure progress bar is full
+      progressBar.style.width = '100%';
+
+      // messageDiv.textContent = 'Status check completed.';
+      progressContainer.style.display = 'none';
       checkButton.disabled = false;
     }
 
     /**
      * Adds a row to the status table.
      * @param {string} name - The name of the model or proxy.
-     * @param {string} status - The status ("Working" or "Down").
+     * @param {boolean} isUp - Indicates if the model is up (for the "Up" column).
      * @param {boolean} isProxy - Indicates if the row is for the proxy.
+     * @returns {HTMLElement} reqCell - The "req" cell element, so we can update it later.
      */
-    function addRowToTable(name, status, isProxy) {
+    function addRowToTable(name, isUp, isProxy) {
       const statusTable = document.getElementById('statusTable');
       const row = document.createElement('tr');
 
       const nameCell = document.createElement('td');
       nameCell.textContent = name;
+      nameCell.classList.add('name');
       if (isProxy) {
         nameCell.classList.add('proxy'); // Apply proxy-specific styling
       }
       row.appendChild(nameCell);
 
-      const statusCell = document.createElement('td');
-      statusCell.textContent = status;
-      if (status.toLowerCase() === 'working') {
-        statusCell.classList.add('working');
-      } else if (status.toLowerCase() === 'down') {
-        statusCell.classList.add('down');
+      const upCell = document.createElement('td');
+      upCell.textContent = isUp ? '✓' : '✗';
+      upCell.classList.add('up');
+      upCell.classList.add(isUp ? 'green' : 'red'); // Apply styling based on up or down
+      row.appendChild(upCell);
+
+      const reqCell = document.createElement('td');
+      reqCell.classList.add('req');
+
+      if (isProxy) {
+        if (isUp) {
+          reqCell.textContent = '✓';
+          reqCell.classList.add('green');
+        } else {
+          reqCell.textContent = '✗';
+          reqCell.classList.add('red');
+        }
+      } else {
+        if (isUp) {
+          reqCell.textContent = '~';
+          reqCell.classList.add('yellow'); // Yellow background
+        } else {
+          reqCell.textContent = '✗';
+          reqCell.classList.add('red');
+        }
       }
-      row.appendChild(statusCell);
+      row.appendChild(reqCell);
 
       statusTable.appendChild(row);
+
+      return reqCell;
     }
   </script>
 </body>
