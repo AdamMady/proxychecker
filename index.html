@@ -5,13 +5,6 @@
   <title>Status Checker</title>
   <!-- Meta viewport tag for responsive design -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Status Checker</title>
-  <!-- Meta viewport tag for responsive design -->
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     /* Reset and base styles */
     * {
@@ -378,39 +371,42 @@
         return;
       }
 
-      if (models.length === 0) {
+      // Filter out ImageGen models
+      const filteredModels = models.filter(model => model.type !== 'images.generations');
+
+      if (filteredModels.length === 0) {
         messageDiv.textContent = 'No models found.';
         checkButton.disabled = false;
         return;
       }
 
-      messageDiv.textContent = `Found ${models.length} models. Checking models...`;
+      messageDiv.textContent = `Found ${filteredModels.length} models. Checking models...`;
 
-      for (let i = 0; i < models.length; i++) {
-        const model = models[i];
+      // Check models in parallel
+      const modelPromises = filteredModels.map(model => {
         const modelId = model.id || 'unknown-id';
-        const modelType = model.type || 'unknown';
-        
-        // Skip ImageGen models
-        if (modelType === 'images.generations') {
-          console.log(`Skipping ImageGen model: ${modelId}`);
-          continue;
-        }
-
-        // Update the message to indicate which model is being checked
-        messageDiv.textContent = `Checking model ${formatModelName(modelId)} (${i + 1}/${models.length})...`;
-        
-        const isWorking = await checkModel(apiUrl, modelId, signal);
-        if (signal.aborted) {
-          checkButton.disabled = false;
-          return;
-        }
-        console.log(`Model ${modelId} is ${isWorking ? 'working' : 'not working'}.`);
-        const status = isWorking ? 'Working' : 'Down';
-
         const modelName = formatModelName(modelId);
-        addRowToTable(modelName, status, false);
-      }
+
+        return checkModel(apiUrl, modelId, signal)
+          .then(isWorking => {
+            if (signal.aborted) {
+              return;
+            }
+            console.log(`Model ${modelId} is ${isWorking ? 'working' : 'not working'}.`);
+            const status = isWorking ? 'Working' : 'Down';
+
+            addRowToTable(modelName, status, false);
+          })
+          .catch(error => {
+            if (error.name === 'AbortError') {
+              console.log(`Check model ${modelId} aborted.`);
+            } else {
+              console.error(`Error checking model ${modelId}:`, error);
+            }
+          });
+      });
+
+      await Promise.all(modelPromises);
 
       messageDiv.textContent = 'Status check completed.';
       checkButton.disabled = false;
