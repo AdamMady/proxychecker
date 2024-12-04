@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Status Checker</title>
+  <title>status checker</title>
   <!-- Meta viewport tag for responsive design -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
@@ -235,10 +235,10 @@
   </style>
 </head>
 <body>
-  <h1>Status Checker</h1>
+  <h1>status checker</h1>
   <div class="container">
     <input type="text" id="apiUrl" placeholder='Enter URL with "/v1" at the end (leave blank for default)'>
-    <button id="checkButton" onclick="checkStatus()">Check Status</button>
+    <button id="checkButton" onclick="checkStatus()">check status</button>
     <!-- Progress Wrapper -->
     <div class="progress-wrapper" id="progressWrapper">
       <div class="progress-container" id="progressContainer">
@@ -246,22 +246,20 @@
       </div>
       <button id="cancelButton" onclick="cancelStatusCheck()">Cancel</button>
     </div>
-    <!-- Message Div (Removed) -->
-    <!-- <div class="message" id="message"></div> -->
   </div>
   <div class="status" id="status">
-    <h2>Model Status</h2>
+    <h2>model status</h2>
     <table id="statusTable">
       <tr>
-        <th class="name">Name</th>
-        <th class="up">Up</th>
-        <th class="req">Req</th>
+        <th class="name">name</th>
+        <th class="up">up</th>
+        <th class="req">req</th>
       </tr>
       <!-- Rows will be added here dynamically -->
     </table>
   </div>
   <!-- Copy Results Button -->
-  <button id="copyButton" onclick="copyResults()" style="display: none; width: 100%; max-width: 800px; margin-top: 20px;">Copy Results</button>
+  <button id="copyButton" onclick="copyResults()" style="display: none; width: 100%; max-width: 800px; margin-top: 20px;">copy results</button>
 
   <script>
     let currentAbortController = null;
@@ -359,27 +357,14 @@
         });
 
         if (response.ok) {
-          const data = await response.json();
-          const content = data.choices[0].message.content.trim();
-          if (content === '.') {
-            // Correct response
-            reqCell.textContent = '✓';
-            reqCell.classList.remove('yellow');
-            reqCell.classList.add('green');
-            // Update Up status to ✓ and green
-            upCell.textContent = '✓';
-            upCell.classList.remove('red');
-            upCell.classList.add('green');
-          } else {
-            // Incorrect response
-            reqCell.textContent = '✗';
-            reqCell.classList.remove('yellow');
-            reqCell.classList.add('red');
-            // Update Up status to ✗ and red
-            upCell.textContent = '✗';
-            upCell.classList.remove('green');
-            upCell.classList.add('red');
-          }
+          // As long as we get a successful response, mark as ✓
+          reqCell.textContent = '✓';
+          reqCell.classList.remove('yellow');
+          reqCell.classList.add('green');
+          // Update Up status to ✓ and green
+          upCell.textContent = '✓';
+          upCell.classList.remove('red');
+          upCell.classList.add('green');
         } else {
           console.error(`Error checking model ${modelId} status: ${response.status} ${response.statusText}`);
           reqCell.textContent = '✗';
@@ -413,7 +398,7 @@
     }
 
     function formatModelName(modelId) {
-      return modelId.split('-').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
+      return modelId.toLowerCase();
     }
 
     async function checkStatus() {
@@ -427,7 +412,6 @@
       const { signal } = currentAbortController;
 
       const apiUrlInput = document.getElementById('apiUrl').value.trim();
-      // const messageDiv = document.getElementById('message'); // Removed
       const statusTable = document.getElementById('statusTable');
       const checkButton = document.getElementById('checkButton');
       const progressWrapper = document.getElementById('progressWrapper');
@@ -452,16 +436,13 @@
           <th class="req">Req</th>
         </tr>
       `;
-      // messageDiv.textContent = ''; // Clear previous message
 
       pendingReqCells = []; // Reset pendingReqCells
 
       let apiUrl = apiUrlInput;
       if (!apiUrl) {
-        // messageDiv.textContent = 'Using latest default proxy...';
         apiUrl = await getDefaultProxy(signal);
         if (!apiUrl) {
-          // messageDiv.textContent = 'Cannot proceed without a valid proxy URL.';
           progressWrapper.style.display = 'none';
           checkButton.disabled = false;
           cancelButton.style.display = 'none';
@@ -469,11 +450,10 @@
         }
       } else {
         if (!apiUrl.startsWith('http')) {
-          apiUrl = 'http://' + apiUrl;
+          apiUrl = 'https://' + apiUrl;
         }
       }
 
-      // messageDiv.textContent = 'Checking proxy...';
       const proxyWorking = await checkProxy(apiUrl, signal);
       if (signal.aborted) {
         progressWrapper.style.display = 'none';
@@ -488,7 +468,6 @@
       const proxyReqCell = proxyRow.reqCell;
 
       if (!proxyWorking) {
-        // messageDiv.textContent = 'Proxy is down. Cannot proceed further.';
         progressWrapper.style.display = 'none';
         checkButton.disabled = false;
         cancelButton.style.display = 'none';
@@ -498,8 +477,6 @@
         proxyReqCell.textContent = '✓';
         proxyReqCell.classList.add('green');
       }
-
-      // messageDiv.textContent = 'Proxy is working. Fetching models...';
 
       const models = await getModels(apiUrl, signal);
       if (signal.aborted) {
@@ -513,7 +490,6 @@
       const filteredModels = models.filter(model => model.type !== 'images.generations');
 
       if (filteredModels.length === 0) {
-        // messageDiv.textContent = 'No models found.';
         progressWrapper.style.display = 'none';
         checkButton.disabled = false;
         cancelButton.style.display = 'none';
@@ -574,7 +550,6 @@
       // Ensure progress bar is full
       progressBar.style.width = '100%';
 
-      // messageDiv.textContent = 'Status check completed.';
       progressWrapper.style.display = 'none';
       checkButton.disabled = false;
       cancelButton.style.display = 'none';
@@ -672,7 +647,7 @@
       const statusTable = document.getElementById('statusTable');
       const rows = statusTable.querySelectorAll('tr');
 
-      let resultsText = 'Model Status:\n';
+      let resultsText = 'model status:\n';
 
       let totalModels = 0;
       let totalUp = 0;
